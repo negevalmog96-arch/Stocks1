@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+
+<html lang="he" dir="rtl">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>מנתח פוטנציאל מניות</title>
+
+<style>
+
+:root {
+
+  --bg:#eceff1; --card:#fff; --text:#17202a;
+
+  --muted:#667085; --primary:#2563eb;
+
+  --green:#16803c; --red:#d92d20; --border:#dfe3e8;
+
+}
+
+*{box-sizing:border-box}
+
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+
+header{background:#111827;color:#fff;padding:22px 16px;text-align:center}
+
+header h1{margin:0 0 8px;font-size:25px}
+
+header p{margin:0;color:#cbd5e1}
+
+main{max-width:1100px;margin:auto;padding:16px}
+
+.notice{background:#fff7d6;border:1px solid #f0d879;padding:12px;border-radius:12px;margin-bottom:16px;line-height:1.6}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 2px 7px #00000008;margin-bottom:14px;min-width:0}
+
+h2{font-size:19px;margin:0 0 14px}
+
+label{display:block;font-size:14px;margin:10px 0 5px}
+
+input,select,textarea{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font:inherit}
+
+button{border:0;border-radius:9px;padding:11px 14px;background:var(--primary);color:#fff;cursor:pointer;font:inherit;font-weight:bold}
+
+button:hover{filter:brightness(.95)}
+
+button.secondary{background:#475467}
+
+button.danger{background:var(--red)}
+
+button.small{padding:7px 10px;font-size:13px}
+
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+
+.stat{background:#fff;border:1px solid var(--border);border-radius:13px;padding:14px}
+
+.name{color:var(--muted);font-size:13px}
+
+.value{font-size:22px;font-weight:bold;margin-top:7px;overflow-wrap:anywhere}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+
+th,td{padding:10px 7px;border-bottom:1px solid var(--border);text-align:right}
+
+th{color:var(--muted);font-weight:bold}
+
+.table-wrap{overflow-x:auto}
+
+.empty{color:var(--muted);text-align:center;padding:20px 5px}
+
+.positive{color:var(--green)}.negative{color:var(--red)}
+
+.result{margin-top:12px;padding:12px;border-radius:10px;background:#f1f5f9;line-height:1.7;white-space:pre-wrap}
+
+footer{text-align:center;color:var(--muted);padding:20px;font-size:12px}
+
+@media(max-width:500px){main{padding:10px}header h1{font-size:21px}.card{padding:13px}}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+  <h1>📈 מנתח פוטנציאל מניות</h1>
+
+  <p>מעקב מניות, ניהול תיק וחישובי השקעה</p>
+
+</header>
+
+<main>
+
+  <div class="notice">
+
+    <strong>גרסה ללא API:</strong>
+
+    מחירי המניות מוזנים ידנית ואינם מחירים בזמן אמת.
+
+    הנתונים נשמרים בדפדפן במכשיר שלך. המחשבון אינו ייעוץ השקעות.
+
+  </div>
+
+  <section class="stats">
+
+    <div class="stat"><div class="name">תקציב השקעה</div><div class="value" id="statBudget">₪0</div></div>
+
+    <div class="stat"><div class="name">שווי תיק משוער</div><div class="value" id="statValue">₪0</div></div>
+
+    <div class="stat"><div class="name">מניות בתיק</div><div class="value" id="statCount">0</div></div>
+
+    <div class="stat"><div class="name">מניות במעקב</div><div class="value" id="statWatch">0</div></div>
+
+  </section>
+
+  <div class="grid">
+
+    <section class="card">
+
+      <h2>💰 תקציב השקעה</h2>
+
+      <label for="budget">תקציב כולל (₪)</label>
+
+      <input id="budget" type="number" min="0" step="100" value="16000">
+
+      <label for="cash">מזומן זמין (₪)</label>
+
+      <input id="cash" type="number" min="0" step="100" value="0">
+
+      <label for="fee">עמלה לכל קנייה (₪)</label>
+
+      <input id="fee" type="number" min="0" step="1" value="0">
+
+      <div class="actions">
+
+        <button onclick="saveBudget()">שמור תקציב</button>
+
+        <button class="secondary" onclick="resetBudget()">איפוס</button>
+
+      </div>
+
+      <div class="result" id="budgetResult"></div>
+
+    </section>
+
+    <section class="card">
+
+      <h2>➕ הוספת מניה לתיק</h2>
+
+      <label for="symbol">סימול מניה</label>
+
+      <input id="symbol" placeholder="לדוגמה NVDA" maxlength="12">
+
+      <label for="shares">מספר מניות</label>
+
+      <input id="shares" type="number" min="0.0001" step="any" placeholder="3">
+
+      <label for="price">מחיר למניה ($)</label>
+
+      <input id="price" type="number" min="0" step="any" placeholder="180">
+
+      <label for="fx">שער דולר לשקל</label>
+
+      <input id="fx" type="number" min="0.01" step="0.01" value="3.3">
+
+      <div class="actions"><button onclick="addHolding()">הוסף לתיק</button></div>
+
+    </section>
+
+    <section class="card">
+
+      <h2>🔎 הוספה לרשימת מעקב</h2>
+
+      <label for="watchSymbol">סימול מניה</label>
+
+      <input id="watchSymbol" placeholder="לדוגמה TTWO" maxlength="12">
+
+      <label for="watchNote">הערה</label>
+
+      <input id="watchNote" placeholder="לדוגמה: צמיחה בתחום הגיימינג">
+
+      <div class="actions"><button onclick="addWatch()">הוסף למעקב</button></div>
+
+    </section>
+
+    <section class="card">
+
+      <h2>🧮 מחשבון פוטנציאל</h2>
+
+      <label for="calcSymbol">סימול מניה (לא חובה)</label>
+
+      <input id="calcSymbol" placeholder="NVDA">
+
+      <label for="calcInvestment">סכום השקעה (₪)</label>
+
+      <input id="calcInvestment" type="number" min="0" value="1000">
+
+      <label for="calcGrowth">שינוי משוער באחוזים (%)</label>
+
+      <input id="calcGrowth" type="number" step="any" value="20">
+
+      <div class="actions"><button onclick="calculatePotential()">חשב תרחיש</button></div>
+
+      <div class="result" id="calcResult">הזן נתונים כדי לחשב תרחיש.</div>
+
+    </section>
+
+  </div>
+
+  <section class="card">
+
+    <h2>📊 תיק ההשקעות שלי</h2>
+
+    <div class="table-wrap">
+
+      <table>
+
+        <thead><tr>
+
+          <th>מניה</th><th>כמות</th><th>מחיר ($)</th>
+
+          <th>שווי (₪)</th><th>פעולות</th>
+
+        </tr></thead>
+
+        <tbody id="holdingsBody"></tbody>
+
+      </table>
+
+    </div>
+
+    <div class="empty" id="holdingsEmpty">עדיין לא הוספת מניות לתיק.</div>
+
+  </section>
+
+  <section class="card">
+
+    <h2>👀 רשימת מעקב</h2>
+
+    <div class="table-wrap">
+
+      <table>
+
+        <thead><tr><th>מניה</th><th>הערה</th><th>פעולה</th></tr></thead>
+
+        <tbody id="watchBody"></tbody>
+
+      </table>
+
+    </div>
+
+    <div class="empty" id="watchEmpty">רשימת המעקב ריקה.</div>
+
+  </section>
+
+  <section class="card">
+
+    <h2>🧠 ניתוח מניה ידני</h2>
+
+    <p>הוסף את הנתונים שאתה מכיר כדי לקבל סיכום מסודר. אין כאן נתוני שוק חיים.</p>
+
+    <label for="analysisSymbol">סימול מניה</label>
+
+    <input id="analysisSymbol" placeholder="לדוגמה MSFT">
+
+    <label for="analysisRevenue">צמיחת הכנסות שנתית (%)</label>
+
+    <input id="analysisRevenue" type="number" step="any" placeholder="לדוגמה 15">
+
+    <label for="analysisProfit">רווחיות החברה</label>
+
+    <select id="analysisProfit">
+
+      <option value="positive">רווחית</option>
+
+      <option value="breakEven">סביב נקודת האיזון</option>
+
+      <option value="negative">עדיין מפסידה</option>
+
+      <option value="unknown">לא ידוע</option>
+
+    </select>
+
+    <label for="analysisRisk">רמת סיכון משוערת</label>
+
+    <select id="analysisRisk">
+
+      <option value="low">נמוכה</option>
+
+      <option value="medium" selected>בינונית</option>
+
+      <option value="high">גבוהה</option>
+
+    </select>
+
+    <label for="analysisNotes">יתרונות, חסרונות וסיכונים</label>
+
+    <textarea id="analysisNotes" rows="3" placeholder="כתוב כאן את המידע שמצאת על החברה"></textarea>
+
+    <div class="actions">
+
+      <button onclick="analyzeStock()">צור סיכום</button>
+
+      <button class="secondary" onclick="clearAnalysis()">נקה</button>
+
+    </div>
+
+    <div class="result" id="analysisResult">הסיכום יופיע כאן.</div>
+
+  </section>
+
+  <section class="card">
+
+    <h2>💾 ניהול נתונים</h2>
+
+    <p>אפשר לייצא את הנתונים לקובץ גיבוי או לייבא גיבוי קודם.</p>
+
+    <div class="actions">
+
+      <button onclick="exportData()">ייצוא גיבוי</button>
+
+      <button class="secondary" onclick="document.getElementById('importFile').click()">ייבוא גיבוי</button>
+
+      <button class="danger" onclick="clearAll()">מחיקת כל הנתונים</button>
+
+    </div>
+
+    <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)">
+
+    <div class="result" id="dataMessage"></div>
+
+  </section>
+
+</main>
+
+<footer>
+
+  מנתח פוטנציאל מניות · נתונים מקומיים בלבד · לא ייעוץ השקעות
+
+</footer>
+
+<script>
+
+const STORAGE_KEY = "stockAnalyzerNoApi_v1";
+
+function defaultState() {
+
+  return {
+
+    budget:16000,
+
+    cash:0,
+
+    fee:0,
+
+    holdings:[],
+
+    watchlist:[]
+
+  };
+
+}
+
+function loadState() {
+
+  try {
+
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) return defaultState();
+
+    const data = JSON.parse(saved);
+
+    return {
+
+      ...defaultState(),
+
+      ...data,
+
+      holdings:Array.isArray(data.holdings) ? data.holdings : [],
+
+      watchlist:Array.isArray(data.watchlist) ? data.watchlist : []
+
+    };
+
+  } catch {
+
+    return defaultState();
+
+  }
+
+}
+
+let state = loadState();
+
+function persist() {
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+}
+
+function number(id) {
+
+  const value = Number(document.getElementById(id).value);
+
+  return Number.isFinite(value) ? value : 0;
+
+}
+
+function text(id) {
+
+  return document.getElementById(id).value.trim();
+
+}
+
+function money(value, currency="ILS") {
+
+  return new Intl.NumberFormat("he-IL", {
+
+    style:"currency",
+
+    currency,
+
+    maximumFractionDigits:2
+
+  }).format(value);
+
+}
+
+function safe(value) {
+
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+
+    "&":"&amp;","<":"&lt;",">":"&gt;",
+
+    '"':"&quot;","'":"&#39;"
+
+  })[char]);
+
+}
+
+function saveBudget() {
+
+  state.budget = Math.max(0, number("budget"));
+
+  state.cash = Math.max(0, number("cash"));
+
+  state.fee = Math.max(0, number("fee"));
+
+  persist();
+
+  render();
+
+}
+
+function resetBudget() {
+
+  document.getElementById("budget").value = 0;
+
+  document.getElementById("cash").value = 0;
+
+  document.getElementById("fee").value = 0;
+
+  saveBudget();
+
+}
+
+function addHolding() {
+
+  const symbol = text("symbol").toUpperCase();
+
+  const shares = number("shares");
+
+  const price = number("price");
+
+  const fx = number("fx");
+
+  if (!/^[A-Z0-9.-]{1,12}$/.test(symbol)) {
+
+    alert("הזן סימול מניה תקין.");
+
+    return;
+
+  }
+
+  if (shares <= 0 || price < 0 || fx <= 0) {
+
+    alert("בדוק את כמות המניות, המחיר ושער הדולר.");
+
+    return;
+
+  }
+
+  state.holdings.push({
+
+    id:Date.now().toString() + Math.random().toString(16).slice(2),
+
+    symbol, shares, price, fx
+
+  });
+
+  persist();
+
+  document.getElementById("symbol").value = "";
+
+  document.getElementById("shares").value = "";
+
+  document.getElementById("price").value = "";
+
+  render();
+
+}
+
+function updateHolding(id) {
+
+  const item = state.holdings.find(x => x.id === id);
+
+  if (!item) return;
+
+  const newPrice = prompt("הזן מחיר חדש בדולרים:", item.price);
+
+  if (newPrice === null) return;
+
+  const price = Number(newPrice);
+
+  if (!Number.isFinite(price) || price < 0) {
+
+    alert("מחיר לא תקין.");
+
+    return;
+
+  }
+
+  const newFx = prompt("הזן שער דולר לשקל:", item.fx);
+
+  if (newFx === null) return;
+
+  const fx = Number(newFx);
+
+  if (!Number.isFinite(fx) || fx <= 0) {
+
+    alert("שער חליפין לא תקין.");
+
+    return;
+
+  }
+
+  item.price = price;
+
+  item.fx = fx;
+
+  persist();
+
+  render();
+
+}
+
+function removeHolding(id) {
+
+  if (!confirm("למחוק את המניה מהתיק?")) return;
+
+  state.holdings = state.holdings.filter(x => x.id !== id);
+
+  persist();
+
+  render();
+
+}
+
+function addWatch() {
+
+  const symbol = text("watchSymbol").toUpperCase();
+
+  const note = text("watchNote");
+
+  if (!/^[A-Z0-9.-]{1,12}$/.test(symbol)) {
+
+    alert("הזן סימול מניה תקין.");
+
+    return;
+
+  }
+
+  if (state.watchlist.some(x => x.symbol === symbol)) {
+
+    alert("המניה כבר נמצאת ברשימת המעקב.");
+
+    return;
+
+  }
+
+  state.watchlist.push({
+
+    id:Date.now().toString() + Math.random().toString(16).slice(2),
+
+    symbol,note
+
+  });
+
+  persist();
+
+  document.getElementById("watchSymbol").value = "";
+
+  document.getElementById("watchNote").value = "";
+
+  render();
+
+}
+
+function removeWatch(id) {
+
+  state.watchlist = state.watchlist.filter(x => x.id !== id);
+
+  persist();
+
+  render();
+
+}
+
+function calculatePotential() {
+
+  const symbol = text("calcSymbol").toUpperCase();
+
+  const investment = number("calcInvestment");
+
+  const growth = number("calcGrowth");
+
+  if (investment < 0 || growth < -100) {
+
+    alert("בדוק את סכום ההשקעה ואת אחוז השינוי.");
+
+    return;
+
+  }
+
+  const profit = investment * growth / 100;
+
+  const finalValue = investment + profit;
+
+  const sign = profit > 0 ? "+" : "";
+
+  document.getElementById("calcResult").textContent =
+
+    (symbol ? "מניה: " + symbol + "\n" : "") +
+
+    "סכום התחלתי: " + money(investment) + "\n" +
+
+    "שינוי משוער: " + sign + money(profit) + "\n" +
+
+    "שווי סופי בתרחיש: " + money(finalValue) + "\n\n" +
+
+    "זהו תרחיש מתמטי בלבד, לא תחזית למחיר המניה.";
+
+}
+
+function analyzeStock() {
+
+  const symbol = text("analysisSymbol").toUpperCase();
+
+  const growthRaw = text("analysisRevenue");
+
+  const growth = Number(growthRaw);
+
+  const profit = document.getElementById("analysisProfit").value;
+
+  const risk = document.getElementById("analysisRisk").value;
+
+  const notes = text("analysisNotes");
+
+  if (!symbol) {
+
+    alert("הזן סימול מניה.");
+
+    return;
+
+  }
+
+  const profitText = {
+
+    positive:"החברה רווחית לפי הנתונים שהוזנו.",
+
+    breakEven:"החברה סביב נקודת האיזון לפי הנתונים שהוזנו.",
+
+    negative:"החברה עדיין מפסידה לפי הנתונים שהוזנו.",
+
+    unknown:"אין מספיק מידע על רווחיות החברה."
+
+  }[profit];
+
+  const riskText = {
+
+    low:"סיכון משוער נמוך יחסית.",
+
+    medium:"סיכון משוער בינוני.",
+
+    high:"סיכון משוער גבוה."
+
+  }[risk];
+
+  let growthText = "לא הוזן נתון צמיחת הכנסות.";
+
+  if (growthRaw !== "" && Number.isFinite(growth)) {
+
+    growthText = "צמיחת הכנסות שהוזנה: " + growth + "%.";
+
+  }
+
+  document.getElementById("analysisResult").textContent =
+
+    "סיכום מניה: " + symbol + "\n\n" +
+
+    growthText + "\n" +
+
+    profitText + "\n" +
+
+    riskText + "\n\n" +
+
+    "הערות שהוזנו:\n" + (notes || "לא הוזנו הערות.") +
+
+    "\n\nהסיכום מבוסס רק על הנתונים שהזנת. הוא אינו ניתוח AI או המלצת קנייה.";
+
+}
+
+function clearAnalysis() {
+
+  ["analysisSymbol","analysisRevenue","analysisNotes"].forEach(id => {
+
+    document.getElementById(id).value = "";
+
+  });
+
+  document.getElementById("analysisProfit").value = "positive";
+
+  document.getElementById("analysisRisk").value = "medium";
+
+  document.getElementById("analysisResult").textContent = "הסיכום יופיע כאן.";
+
+}
+
+function render() {
+
+  document.getElementById("budget").value = state.budget;
+
+  document.getElementById("cash").value = state.cash;
+
+  document.getElementById("fee").value = state.fee;
+
+  const totalValue = state.holdings.reduce(
+
+    (sum,x) => sum + x.shares * x.price * x.fx, 0
+
+  );
+
+  const totalShares = state.holdings.reduce((sum,x) => sum + x.shares, 0);
+
+  document.getElementById("statBudget").textContent = money(state.budget);
+
+  document.getElementById("statValue").textContent = money(totalValue);
+
+  document.getElementById("statCount").textContent = totalShares.toLocaleString("he-IL");
+
+  document.getElementById("statWatch").textContent = state.watchlist.length;
+
+  const available = Math.max(0, state.budget - state.cash);
+
+  const feeReserve = state.fee * state.holdings.length;
+
+  document.getElementById("budgetResult").textContent =
+
+    "תקציב כולל: " + money(state.budget) + "\n" +
+
+    "מזומן זמין: " + money(state.cash) + "\n" +
+
+    "תקציב השקעה לפני עמלות: " + money(available) + "\n" +
+
+    "הערכת עמלות לפי מספר שורות בתיק: " + money(feeReserve) + "\n" +
+
+    "הסכום אינו כולל עמלות מכירה או עלויות נוספות.";
+
+  const holdingsBody = document.getElementById("holdingsBody");
+
+  holdingsBody.innerHTML = state.holdings.map(x => `
+
+    <tr>
+
+      <td><strong>${safe(x.symbol)}</strong></td>
+
+      <td>${Number(x.shares).toLocaleString("he-IL")}</td>
+
+      <td>${money(x.price,"USD")}</td>
+
+      <td>${money(x.shares*x.price*x.fx)}</td>
+
+      <td>
+
+        <button class="small secondary" onclick="updateHolding('${safe(x.id)}')">עדכון</button>
+
+        <button class="small danger" onclick="removeHolding('${safe(x.id)}')">מחיקה</button>
+
+      </td>
+
+    </tr>
+
+  `).join("");
+
+  document.getElementById("holdingsEmpty").classList.toggle(
+
+    "hidden", state.holdings.length > 0
+
+  );
+
+  const watchBody = document.getElementById("watchBody");
+
+  watchBody.innerHTML = state.watchlist.map(x => `
+
+    <tr>
+
+      <td><strong>${safe(x.symbol)}</strong></td>
+
+      <td>${safe(x.note || "—")}</td>
+
+      <td><button class="small danger" onclick="removeWatch('${safe(x.id)}')">הסר</button></td>
+
+    </tr>
+
+  `).join("");
+
+  document.getElementById("watchEmpty").classList.toggle(
+
+    "hidden", state.watchlist.length > 0
+
+  );
+
+}
+
+function exportData() {
+
+  const blob = new Blob([JSON.stringify(state,null,2)], {
+
+    type:"application/json"
+
+  });
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+
+  a.href = url;
+
+  a.download = "stock-portfolio-backup.json";
+
+  a.click();
+
+  URL.revokeObjectURL(url);
+
+  document.getElementById("dataMessage").textContent = "קובץ הגיבוי נוצר.";
+
+}
+
+function importData(event) {
+
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+
+    try {
+
+      const data = JSON.parse(reader.result);
+
+      if (!data || !Array.isArray(data.holdings) ||
+
+          !Array.isArray(data.watchlist)) {
+
+        throw new Error("פורמט לא תקין");
+
+      }
+
+      state = {
+
+        ...defaultState(),
+
+        ...data,
+
+        holdings:data.holdings,
+
+        watchlist:data.watchlist
+
+      };
+
+      persist();
+
+      render();
+
+      document.getElementById("dataMessage").textContent = "הגיבוי יובא בהצלחה.";
+
+    } catch {
+
+      alert("לא ניתן לייבא את הקובץ. בדוק שזהו קובץ גיבוי מתאים.");
+
+    }
+
+    event.target.value = "";
+
+  };
+
+  reader.readAsText(file);
+
+}
+
+function clearAll() {
+
+  if (!confirm("למחוק את כל תיק ההשקעות, רשימת המעקב והתקציב השמור?")) return;
+
+  state = defaultState();
+
+  persist();
+
+  render();
+
+  document.getElementById("dataMessage").textContent = "הנתונים נמחקו.";
+
+}
+
+render();
+
+</script>
+
+</body>
+
+</html>
